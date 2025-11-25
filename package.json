@@ -1,0 +1,39 @@
+{
+    "name": "my-village-backend",
+    "version": "1.0.0",
+    "scripts": {
+      "postinstall": "prisma generate",
+      "dev": "npx nodemon src/app.js",
+      "start": "node src/app.js",
+      "docker:dev": "docker-compose up --build",
+      "docker:down": "docker-compose down",
+      "docker:clean": "docker-compose down -v --remove-orphans",
+      "db:migrate": "npx prisma migrate dev",
+      "db:reset": "npx prisma migrate reset",
+      "db:seed": "node prisma/seed.js",
+      "db:studio": "npx prisma studio",
+      "docker:db:migrate": "docker-compose exec app npm run db:migrate",
+      "docker:db:seed": "docker-compose exec app npm run db:seed"
+    },
+    "dependencies": {
+      "@prisma/client": "^4.0.0",
+      "express": "^4.18.0",
+      "jsonwebtoken": "^9.0.0",
+      "bcryptjs": "^2.4.3",
+      "multer": "^1.4.4",
+      "redis": "^4.0.0",
+      "cors": "^2.8.5",
+      "helmet": "^6.0.0",
+      "express-rate-limit": "^6.0.0",
+      "express-validator": "^7.0.0",
+      "validator": "^13.0.0",
+      "dotenv": "^16.0.0",
+      "aws-sdk": "^2.1500.0",
+      "axios": "^1.6.0",
+      "uuid": "^9.0.0"
+    },
+    "devDependencies": {
+      "prisma": "^4.0.0",
+      "nodemon": "^2.0.0"
+    }
+  }

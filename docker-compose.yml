@@ -1,0 +1,105 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: our-village-backend
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@db:5432/our_village
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - SMS_API_KEY=your-sms-api-key
+      - AWS_ACCESS_KEY_ID=your-aws-key
+      - AWS_SECRET_ACCESS_KEY=your-aws-secret
+      - AWS_REGION=ru-central1
+      - AWS_BUCKET_NAME=our-village-uploads
+      - CLIENT_URL=http://localhost:3001
+      - PORT=3000
+      - PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+      - node_modules_data:/app/node_modules
+      - ./prisma:/app/prisma
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - our-village-network
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for database to be ready..."
+        /app/scripts/wait-for-it.sh db 5432 30
+        echo "Database is ready!"
+        echo "Prisma Client should be generated via postinstall script"
+        echo "Verifying Prisma Client..."
+        if [ ! -f "/app/node_modules/.prisma/client/index.js" ]; then
+          echo "WARNING: Prisma Client not found, generating manually..."
+          npx prisma generate || echo "Generation failed, but continuing..."
+        fi
+        echo "Running database migrations..."
+        npx prisma migrate deploy || npx prisma migrate dev --name init || echo "Migration skipped or failed"
+        echo "Starting application..."
+        npm run dev
+
+  db:
+    image: postgres:14-alpine
+    container_name: our-village-db
+    environment:
+      - POSTGRES_DB=our_village
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - our-village-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: our-village-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - our-village-network
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: our-village-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@ourvillage.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    networks:
+      - our-village-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  node_modules_data:
+
+networks:
+  our-village-network:
+    driver: bridge

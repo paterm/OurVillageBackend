@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  email       String?  @unique
+  password    String
+  name        String
+  avatar      String?
+  telegramId  String?  @unique
+  role        Role     @default(USER)
+  isVerified  Boolean  @default(false)
+  isBanned    Boolean  @default(false)
+  banReason   String?
+  banUntil    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listings    Listing[]
+  reviews     Review[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications    Notification[]
+  reports     Report[]
+  pendingVerifications PendingVerification[]
+
+  @@map("users")
+}
+
+model Listing {
+  id            String      @id @default(uuid())
+  title         String
+  description   String      @db.Text
+  price         Float?
+  category      String
+  type          ListingType @default(LISTING)
+  images        String[]
+  status        ListingStatus @default(PENDING)
+  moderationNote String?
+  userId        String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews       Review[]
+  messages      Message[]
+  reports       Report[]
+
+  @@map("listings")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?  @db.Text
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model Message {
+  id            String   @id @default(uuid())
+  content       String   @db.Text
+  conversationId String
+  senderId      String
+  receiverId    String
+  listingId     String?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  sender        User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  listing       Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  data      String   @db.Text
+  isRead    Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Report {
+  id          String        @id @default(uuid())
+  reason      String        @db.Text
+  status      ReportStatus  @default(PENDING)
+  resolution  String?       @db.Text
+  resolvedAt  DateTime?
+  reporterId  String
+  listingId   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  reporter    User          @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  listing     Listing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@map("reports")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ListingType {
+  LISTING
+  SERVICE
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  BANNED
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
+model PendingVerification {
+  id          String   @id @default(uuid())
+  userId      String
+  verifyToken String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pending_verifications")
+  @@index([verifyToken])
+  @@index([expiresAt])
+}
+
