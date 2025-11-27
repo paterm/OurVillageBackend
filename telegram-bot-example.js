@@ -16,6 +16,9 @@ const BOT_TOKEN = '8237696982:AAFL5cqqsj42SZg8_wwcNpHhYZNx9UROhC4';
 // URL вашего backend API
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
+// Имя бота (должно совпадать с TELEGRAM_BOT_USERNAME в .env)
+const BOT_USERNAME = 'OurVillageBot';
+
 // Создаем экземпляр бота
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
@@ -30,7 +33,7 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
 
   try {
     // Шаг 1: Проверяем токен через ваш API
-    const verifyResponse = await axios.post(`${API_URL}/api/telegram/verify-token`, {
+    const verifyResponse = await axios.post(`${API_URL}/api/auth/telegram/bot/verify-token`, {
       verifyToken
     });
 
@@ -39,15 +42,30 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
       return;
     }
 
-    const user = verifyResponse.data.user;
+    // Получаем данные пользователя из Telegram
+    const telegramUser = msg.from;
+    const name = `${telegramUser.first_name}${telegramUser.last_name ? ' ' + telegramUser.last_name : ''}`.trim();
+    
+    // Если пользователь уже существует, используем его данные
+    const existingUser = verifyResponse.data.user;
+    let phone = existingUser?.phone || null;
 
-    // Шаг 2: Если токен валиден, подтверждаем верификацию
-    const confirmResponse = await axios.post(`${API_URL}/api/telegram/confirm`, {
+    // Если номера телефона нет, можно запросить его через кнопку
+    // Для упрощения, используем данные из контакта, если они доступны
+    if (!phone && msg.contact) {
+      phone = msg.contact.phone_number;
+    }
+
+    // Шаг 2: Если токен валиден, подтверждаем верификацию с данными из Telegram
+    const confirmResponse = await axios.post(`${API_URL}/api/auth/telegram/bot/confirm`, {
       verifyToken,
-      telegramId
+      telegramId,
+      phone: phone, // Может быть null, если не предоставлен
+      name: name
     });
 
     if (confirmResponse.data.success) {
+      const user = confirmResponse.data.user;
       await bot.sendMessage(
         chatId,
         `✅ Верификация успешна!\n\n` +
@@ -65,6 +83,26 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
     } else {
       await bot.sendMessage(chatId, '❌ Произошла ошибка при верификации. Попробуйте позже.');
     }
+  }
+});
+
+/**
+ * Обработчик получения контакта (если пользователь отправил свой номер телефона)
+ */
+bot.on('contact', async (msg) => {
+  const chatId = msg.chat.id;
+  const contact = msg.contact;
+  
+  // Если это контакт пользователя (не из телефонной книги)
+  if (contact.user_id === msg.from.id) {
+    // Можно сохранить номер телефона для текущей сессии верификации
+    // Для этого нужно хранить состояние (verifyToken) в памяти или БД
+    // Здесь просто показываем сообщение
+    await bot.sendMessage(
+      chatId,
+      '📱 Спасибо за предоставление номера телефона!\n\n' +
+      'Для верификации перейдите по ссылке из приложения.'
+    );
   }
 });
 

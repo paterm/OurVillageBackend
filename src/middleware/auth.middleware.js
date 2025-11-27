@@ -1,44 +1,50 @@
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const { getRepository } = require('../utils/database');
+const { User } = require('../entities/User');
 
 /**
  * Middleware для проверки JWT токена
  */
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || req.headers.Authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
+      return res.status(401).json({ 
+        error: 'No token provided',
+        message: 'Please provide a valid JWT token in the Authorization header: Authorization: Bearer <token>'
+      });
     }
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        phone: true,
-        name: true,
-        email: true,
-        role: true,
-        isVerified: true,
-        isBanned: true
-      }
+    const userRepo = getRepository(User);
+    const user = await userRepo.findOne({
+      where: { id: decoded.userId }
     });
+
+    if (user) {
+      // Возвращаем только нужные поля
+      req.user = {
+        id: user.id,
+        phone: user.phone,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        isBanned: user.isBanned
+      };
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    if (user.isBanned) {
+    if (req.user.isBanned) {
       return res.status(403).json({ error: 'User is banned' });
     }
 
-    req.user = user;
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -86,4 +92,3 @@ module.exports = {
   requireAdmin,
   requireVerified
 };
-

@@ -1,88 +1,31 @@
-const { PrismaClient } = require('@prisma/client');
-const smsService = require('../utils/sms');
-
-const prisma = new PrismaClient();
-
-/**
- * Отправить уведомление
- */
+// TODO: Реализовать с TypeORM после создания Notification entity
 const sendNotification = async (userId, type, data) => {
-  const notification = await prisma.notification.create({
-    data: {
-      userId,
-      type,
-      data: JSON.stringify(data),
-      isRead: false
-    }
-  });
-
-  // TODO: Отправить push-уведомление через WebSocket или FCM
-
-  return notification;
+  console.log('Notification service: sendNotification called', { userId, type, data });
+  // TODO: Реализовать
+  return { id: 'temp', userId, type, data, isRead: false, createdAt: new Date() };
 };
 
-/**
- * Получить уведомления пользователя
- */
 const getUserNotifications = async (userId, { page = 1, limit = 20 }) => {
-  const skip = (page - 1) * limit;
-
-  const [notifications, total] = await Promise.all([
-    prisma.notification.findMany({
-      where: { userId },
-      skip,
-      take: parseInt(limit),
-      orderBy: { createdAt: 'desc' }
-    }),
-    prisma.notification.count({ where: { userId } })
-  ]);
-
+  console.log('Notification service: getUserNotifications called', { userId, page, limit });
   return {
-    notifications,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / limit)
-    }
+    notifications: [],
+    pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 }
   };
 };
 
-/**
- * Отметить уведомление как прочитанное
- */
 const markAsRead = async (notificationId, userId) => {
-  await prisma.notification.updateMany({
-    where: {
-      id: notificationId,
-      userId
-    },
-    data: {
-      isRead: true
-    }
-  });
+  console.log('Notification service: markAsRead called', { notificationId, userId });
+  // TODO: Реализовать
 };
 
-/**
- * Отметить все уведомления как прочитанные
- */
 const markAllAsRead = async (userId) => {
-  await prisma.notification.updateMany({
-    where: {
-      userId,
-      isRead: false
-    },
-    data: {
-      isRead: true
-    }
-  });
+  console.log('Notification service: markAllAsRead called', { userId });
+  // TODO: Реализовать
 };
 
-/**
- * Отправить SMS уведомление
- */
 const sendSMSNotification = async (phone, message) => {
-  await smsService.sendSMS(phone, message);
+  console.log('Notification service: sendSMSNotification called', { phone, message });
+  // TODO: Реализовать
 };
 
 module.exports = {
@@ -92,4 +35,3 @@ module.exports = {
   markAllAsRead,
   sendSMSNotification
 };
-

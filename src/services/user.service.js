@@ -1,133 +1,77 @@
-const { PrismaClient } = require('@prisma/client');
+const { getRepository } = require('../utils/database');
+const { User } = require('../entities/User');
 const uploadUtil = require('../utils/upload');
-
-const prisma = new PrismaClient();
 
 /**
  * Получить пользователя по ID
  */
 const getUserById = async (id) => {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      phone: true,
-      name: true,
-      email: true,
-      avatar: true,
-      isVerified: true,
-      createdAt: true,
-      _count: {
-        select: {
-          listings: true,
-          reviews: true
-        }
-      }
-    }
+  const userRepo = getRepository(User);
+  const user = await userRepo.findOne({
+    where: { id }
   });
 
+  if (!user) {
+    return null;
+  }
+
+  // Возвращаем только нужные поля
+  return {
+    id: user.id,
+    phone: user.phone,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar,
+    isVerified: user.isVerified,
+    createdAt: user.createdAt
+  };
+};
+
+/**
+ * Обновить профиль пользователя
+ */
+const updateProfile = async (userId, data) => {
+  const userRepo = getRepository(User);
+  
+  // Проверяем, существует ли пользователь
+  const user = await userRepo.findOne({ where: { id: userId } });
   if (!user) {
     throw new Error('User not found');
   }
 
-  return user;
+  // Обновляем только разрешенные поля
+  const updateData = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.avatar !== undefined) updateData.avatar = data.avatar;
+
+  await userRepo.update(userId, updateData);
+
+  return await getUserById(userId);
 };
 
 /**
- * Обновить данные пользователя
- */
-const updateUser = async (userId, updateData) => {
-  const allowedFields = ['name', 'email'];
-  const filteredData = Object.keys(updateData)
-    .filter(key => allowedFields.includes(key))
-    .reduce((obj, key) => {
-      obj[key] = updateData[key];
-      return obj;
-    }, {});
-
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: filteredData,
-    select: {
-      id: true,
-      phone: true,
-      name: true,
-      email: true,
-      avatar: true,
-      isVerified: true
-    }
-  });
-
-  return updatedUser;
-};
-
-/**
- * Загрузить аватар пользователя
+ * Загрузить аватар
  */
 const uploadAvatar = async (userId, file) => {
-  if (!file) {
-    throw new Error('No file provided');
+  const userRepo = getRepository(User);
+  
+  const user = await userRepo.findOne({ where: { id: userId } });
+  if (!user) {
+    throw new Error('User not found');
   }
 
-  const avatarUrl = await uploadUtil.uploadToS3(file, 'avatars');
-  
-  await prisma.user.update({
-    where: { id: userId },
-    data: { avatar: avatarUrl }
-  });
+  // Загружаем файл
+  const avatarUrl = await uploadUtil.uploadFile(file, 'avatars');
+
+  // Обновляем аватар пользователя
+  await userRepo.update(userId, { avatar: avatarUrl });
 
   return avatarUrl;
 };
 
-/**
- * Получить список пользователей (для админа)
- */
-const getUsers = async ({ page = 1, limit = 10, search }) => {
-  const skip = (page - 1) * limit;
-  
-  const where = search ? {
-    OR: [
-      { name: { contains: search, mode: 'insensitive' } },
-      { phone: { contains: search } },
-      { email: { contains: search, mode: 'insensitive' } }
-    ]
-  } : {};
-
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      skip,
-      take: parseInt(limit),
-      select: {
-        id: true,
-        phone: true,
-        name: true,
-        email: true,
-        role: true,
-        isVerified: true,
-        isBanned: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    }),
-    prisma.user.count({ where })
-  ]);
-
-  return {
-    users,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / limit)
-    }
-  };
-};
-
 module.exports = {
   getUserById,
-  updateUser,
-  uploadAvatar,
-  getUsers
+  updateProfile,
+  uploadAvatar
 };
-

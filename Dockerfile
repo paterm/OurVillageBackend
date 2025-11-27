@@ -13,18 +13,11 @@ WORKDIR /app
 # Копируем package.json и package-lock.json
 COPY package*.json ./
 
-# Устанавливаем все зависимости (включая dev для nodemon и prisma)
-# Используем npm install для большей гибкости в разработке
+# Устанавливаем все зависимости
 RUN npm install
-
-# Предзагружаем Prisma engines для избежания проблем при генерации
-RUN npx prisma --version || true
 
 # Копируем скрипты
 COPY scripts ./scripts
-
-# Копируем Prisma schema
-COPY prisma ./prisma/
 
 # Копируем исходный код
 COPY . .
@@ -44,9 +37,6 @@ RUN chown -R appuser:nodejs /app
 
 # Переключаемся на не-root пользователя
 USER appuser
-
-# Генерируем Prisma Client от имени appuser
-RUN npx prisma generate
 
 # Открываем порт
 EXPOSE 3000

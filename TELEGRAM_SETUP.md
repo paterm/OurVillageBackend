@@ -40,7 +40,7 @@
 
 ### Для бота:
 
-#### POST `/api/telegram/verify-token`
+#### POST `/api/auth/telegram/verify-token`
 Проверить токен верификации:
 
 **Request:**
@@ -71,7 +71,7 @@
 }
 ```
 
-#### POST `/api/telegram/confirm`
+#### POST `/api/auth/telegram/confirm`
 Подтвердить верификацию:
 
 **Request:**

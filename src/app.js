@@ -1,18 +1,17 @@
 require('dotenv').config();
+require('reflect-metadata');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { PrismaClient } = require('@prisma/client');
+const { connectDB, disconnectDB } = require('./utils/database');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const listingRoutes = require('./routes/listing.routes');
 const serviceRoutes = require('./routes/service.routes');
 const adminRoutes = require('./routes/admin.routes');
-const telegramRoutes = require('./routes/telegram.routes');
 
-const prisma = new PrismaClient();
 const app = express();
 
 // Middleware
@@ -41,17 +40,24 @@ app.use('/api/users', userRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/telegram', telegramRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ 
-      status: 'OK', 
-      database: 'connected',
-      timestamp: new Date().toISOString()
-    });
+    const { dataSource } = require('./utils/database');
+    if (dataSource() && dataSource().isInitialized) {
+      await dataSource().query('SELECT 1');
+      res.status(200).json({ 
+        status: 'OK', 
+        database: 'connected',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({ 
+        status: 'ERROR', 
+        database: 'not initialized'
+      });
+    }
   } catch (error) {
     res.status(500).json({ 
       status: 'ERROR', 
@@ -77,10 +83,29 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+// Подключаемся к базе данных и запускаем сервер
+connectDB().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  });
+}).catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  await disconnectDB();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  await disconnectDB();
+  process.exit(0);
 });
 
 module.exports = app;

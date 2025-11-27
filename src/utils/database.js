@@ -1,14 +1,30 @@
-const { PrismaClient } = require('@prisma/client');
+const { DataSource } = require('typeorm');
 
-const prisma = new PrismaClient();
+let dataSource;
 
 /**
  * Подключение к базе данных
  */
 const connectDB = async () => {
   try {
-    await prisma.$connect();
-    console.log('✅ Database connected');
+    if (!dataSource) {
+      // Динамически загружаем entities, чтобы избежать циклических зависимостей
+      const { User } = require('../entities/User');
+      const { PendingVerification } = require('../entities/PendingVerification');
+      
+      dataSource = new DataSource({
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        entities: [User, PendingVerification],
+        synchronize: process.env.NODE_ENV === 'development', // Автоматическая синхронизация в dev
+        logging: process.env.NODE_ENV === 'development',
+      });
+    }
+
+    if (!dataSource.isInitialized) {
+      await dataSource.initialize();
+      console.log('✅ Database connected');
+    }
   } catch (error) {
     console.error('❌ Database connection error:', error);
     process.exit(1);
@@ -19,34 +35,29 @@ const connectDB = async () => {
  * Отключение от базы данных
  */
 const disconnectDB = async () => {
-  await prisma.$disconnect();
-  console.log('✅ Database disconnected');
-};
-
-/**
- * Очистка базы данных (для тестов)
- */
-const cleanDB = async () => {
-  await prisma.$executeRaw`TRUNCATE TABLE "User", "Listing", "Review", "Message", "Notification", "Report" CASCADE`;
-};
-
-/**
- * Проверка здоровья базы данных
- */
-const healthCheck = async () => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    return { status: 'healthy' };
+    if (dataSource && dataSource.isInitialized) {
+      await dataSource.destroy();
+      console.log('✅ Database disconnected');
+    }
   } catch (error) {
-    return { status: 'unhealthy', error: error.message };
+    console.error('❌ Database disconnection error:', error);
   }
 };
 
-module.exports = {
-  prisma,
-  connectDB,
-  disconnectDB,
-  cleanDB,
-  healthCheck
+/**
+ * Получить репозиторий для работы с сущностью
+ */
+const getRepository = (entityClass) => {
+  if (!dataSource || !dataSource.isInitialized) {
+    throw new Error('Database not initialized. Call connectDB() first.');
+  }
+  return dataSource.getRepository(entityClass);
 };
 
+module.exports = {
+  connectDB,
+  disconnectDB,
+  getRepository,
+  dataSource: () => dataSource,
+};

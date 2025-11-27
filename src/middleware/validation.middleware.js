@@ -92,12 +92,24 @@ const validateId = [
   handleValidationErrors
 ];
 
+/**
+ * Валидация телефона (опциональная, для запроса verify-token)
+ */
+const validatePhone = [
+  body('phone')
+    .optional()
+    .isMobilePhone('ru-RU')
+    .withMessage('Invalid phone number format'),
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateRegister,
   validateLogin,
   validateCreateListing,
   validateUpdateProfile,
-  validateId
+  validateId,
+  validatePhone
 };
 

@@ -1,16 +1,17 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const { getRepository } = require('../utils/database');
+const { User } = require('../entities/User');
 const telegramVerificationService = require('./telegram-verification.service');
-
-const prisma = new PrismaClient();
 
 /**
  * Регистрация нового пользователя
  */
 const register = async (phone, password, name) => {
+  const userRepo = getRepository(User);
+  
   // Проверка существования пользователя
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await userRepo.findOne({
     where: { phone }
   });
 
@@ -22,30 +23,26 @@ const register = async (phone, password, name) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Создание пользователя
-  const user = await prisma.user.create({
-    data: {
-      phone,
-      password: hashedPassword,
-      name
-    },
-    select: {
-      id: true,
-      phone: true,
-      name: true,
-      isVerified: true
-    }
+  const user = await userRepo.save({
+    phone,
+    password: hashedPassword,
+    name
   });
 
-  // Генерируем токен для Telegram верификации
-  const verification = await telegramVerificationService.generateVerificationToken(user.id);
+  // Возвращаем только нужные поля
+  const userData = {
+    id: user.id,
+    phone: user.phone,
+    name: user.name,
+    isVerified: user.isVerified
+  };
 
   const tokens = generateTokens(user.id);
 
   return {
-    user,
+    user: userData,
     ...tokens,
-    telegramLink: verification.telegramLink,
-    message: 'Please verify your account via Telegram'
+    message: 'Registration successful. Please request verification token via Telegram.'
   };
 };
 
@@ -53,7 +50,9 @@ const register = async (phone, password, name) => {
  * Вход пользователя
  */
 const login = async (phone, password) => {
-  const user = await prisma.user.findUnique({
+  const userRepo = getRepository(User);
+  
+  const user = await userRepo.findOne({
     where: { phone }
   });
 
@@ -141,4 +140,3 @@ module.exports = {
   refreshToken,
   requestTelegramVerification
 };
-

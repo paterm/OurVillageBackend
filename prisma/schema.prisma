@@ -12,7 +12,7 @@ datasource db {
 
 model User {
   id          String   @id @default(uuid())
-  phone       String   @unique
+  phone       String?  @unique
   email       String?  @unique
   password    String
   name        String
@@ -146,15 +146,19 @@ enum ReportStatus {
 
 model PendingVerification {
   id          String   @id @default(uuid())
-  userId      String
+  userId      String?
   verifyToken String   @unique
   expiresAt   DateTime
+  verified    Boolean  @default(false)
+  telegramId  String?
   createdAt   DateTime @default(now())
+  verifiedAt  DateTime?
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("pending_verifications")
   @@index([verifyToken])
   @@index([expiresAt])
+  @@index([verified])
 }
 

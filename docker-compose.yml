@@ -18,12 +18,9 @@ services:
       - AWS_BUCKET_NAME=our-village-uploads
       - CLIENT_URL=http://localhost:3001
       - PORT=3000
-      - PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
     volumes:
       - ./src:/app/src
       - ./uploads:/app/uploads
-      - node_modules_data:/app/node_modules
-      - ./prisma:/app/prisma
     depends_on:
       db:
         condition: service_healthy
@@ -38,14 +35,6 @@ services:
         echo "Waiting for database to be ready..."
         /app/scripts/wait-for-it.sh db 5432 30
         echo "Database is ready!"
-        echo "Prisma Client should be generated via postinstall script"
-        echo "Verifying Prisma Client..."
-        if [ ! -f "/app/node_modules/.prisma/client/index.js" ]; then
-          echo "WARNING: Prisma Client not found, generating manually..."
-          npx prisma generate || echo "Generation failed, but continuing..."
-        fi
-        echo "Running database migrations..."
-        npx prisma migrate deploy || npx prisma migrate dev --name init || echo "Migration skipped or failed"
         echo "Starting application..."
         npm run dev
 
@@ -98,7 +87,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  node_modules_data:
 
 networks:
   our-village-network:
