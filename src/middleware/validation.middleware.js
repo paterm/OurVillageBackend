@@ -93,6 +93,16 @@ const validateId = [
 ];
 
 /**
+ * Валидация listingId параметра
+ */
+const validateListingId = [
+  param('listingId')
+    .isUUID()
+    .withMessage('Invalid listing ID format'),
+  handleValidationErrors
+];
+
+/**
  * Валидация телефона (опциональная, для запроса verify-token)
  */
 const validatePhone = [
@@ -110,6 +120,7 @@ module.exports = {
   validateCreateListing,
   validateUpdateProfile,
   validateId,
+  validateListingId,
   validatePhone
 };
 

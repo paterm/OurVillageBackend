@@ -23,7 +23,7 @@
   "user": { ... },
   "accessToken": "...",
   "refreshToken": "...",
-  "telegramLink": "https://t.me/our_village?start=<verifyToken>",
+  "telegramLink": "https://t.me/OurVillageBot?start=<verifyToken>",
   "message": "Please verify your account via Telegram"
 }
 ```
@@ -33,7 +33,7 @@
 
 ```json
 {
-  "telegramLink": "https://t.me/our_village?start=<verifyToken>",
+  "telegramLink": "https://t.me/OurVillageBot?start=<verifyToken>",
   "expiresAt": "2024-11-24T20:00:00.000Z"
 }
 ```
@@ -121,7 +121,7 @@ npm install node-telegram-bot-api
 
 ```env
 TELEGRAM_BOT_TOKEN=8237696982:AAFL5cqqsj42SZg8_wwcNpHhYZNx9UROhC4
-TELEGRAM_BOT_USERNAME=our_village
+TELEGRAM_BOT_USERNAME=OurVillageBot
 API_URL=http://localhost:3001
 ```
 

@@ -11,11 +11,15 @@ const connectDB = async () => {
       // Динамически загружаем entities, чтобы избежать циклических зависимостей
       const { User } = require('../entities/User');
       const { PendingVerification } = require('../entities/PendingVerification');
+      const { Listing } = require('../entities/Listing');
+      const { Review } = require('../entities/Review');
+      const { Category } = require('../entities/Category');
+      const { MarketplaceItem } = require('../entities/MarketplaceItem');
       
       dataSource = new DataSource({
         type: 'postgres',
         url: process.env.DATABASE_URL,
-        entities: [User, PendingVerification],
+        entities: [User, PendingVerification, Listing, Review, Category, MarketplaceItem],
         synchronize: process.env.NODE_ENV === 'development', // Автоматическая синхронизация в dev
         logging: process.env.NODE_ENV === 'development',
       });

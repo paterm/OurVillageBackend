@@ -69,6 +69,11 @@ const User = new EntitySchema({
       target: 'PendingVerification',
       inverseSide: 'user',
     },
+    listings: {
+      type: 'one-to-many',
+      target: 'Listing',
+      inverseSide: 'user',
+    },
   },
 });
 

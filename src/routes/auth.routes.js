@@ -3,7 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const telegramController = require('../controllers/telegram.controller');
 const { validateRegister, validateLogin, validatePhone } = require('../middleware/validation.middleware');
-const { authLimiter } = require('../middleware/rateLimit.middleware');
+const { authLimiter, verificationStatusLimiter, verifyTokenLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
 /**
@@ -35,6 +35,13 @@ router.post('/logout', authenticate, authController.logout);
 router.post('/refresh', authController.refreshToken);
 
 /**
+ * @route   GET /api/auth/me
+ * @desc    Получить текущего пользователя по токену
+ * @access  Private
+ */
+router.get('/me', authenticate, authController.getCurrentUser);
+
+/**
  * @route   POST /api/auth/telegram/request
  * @desc    Запросить новую ссылку для Telegram верификации
  * @access  Private
@@ -48,14 +55,14 @@ router.post('/telegram/request', authenticate, authController.requestTelegramVer
  * @note    Токен генерируется без привязки к пользователю.
  *          Пользователь будет создан/обновлен при подтверждении верификации в Telegram.
  */
-router.post('/telegram/verify-token', telegramController.generateVerifyToken);
+router.post('/telegram/verify-token', verifyTokenLimiter, telegramController.generateVerifyToken);
 
 /**
  * @route   GET /api/auth/telegram/verify-status/:token
  * @desc    Проверяет статус верификации по токену
  * @access  Public
  */
-router.get('/telegram/verify-status/:token', telegramController.getVerificationStatus);
+router.get('/telegram/verify-status/:token', verificationStatusLimiter, telegramController.getVerificationStatus);
 
 /**
  * @route   POST /api/auth/telegram/bot/verify-token

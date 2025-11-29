@@ -11,6 +11,8 @@ const userRoutes = require('./routes/user.routes');
 const listingRoutes = require('./routes/listing.routes');
 const serviceRoutes = require('./routes/service.routes');
 const adminRoutes = require('./routes/admin.routes');
+const categoryRoutes = require('./routes/category.routes');
+const marketplaceRoutes = require('./routes/marketplace.routes');
 
 const app = express();
 
@@ -40,6 +42,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -81,7 +85,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Подключаемся к базе данных и запускаем сервер
 connectDB().then(() => {

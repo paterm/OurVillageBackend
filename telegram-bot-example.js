@@ -1,23 +1,31 @@
 /**
- * Пример кода для Telegram бота
+ * Telegram бот для верификации пользователей
  * 
- * Этот файл показывает, как должен работать бот для верификации пользователей.
- * Вы можете использовать библиотеку node-telegram-bot-api или telegraf.
- * 
- * Установка: npm install node-telegram-bot-api
+ * Запуск: npm run bot
+ * Или с автоперезагрузкой: npm run bot:dev
  */
 
+require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// Токен бота из BotFather
-const BOT_TOKEN = '8237696982:AAFL5cqqsj42SZg8_wwcNpHhYZNx9UROhC4';
+// Токен бота из BotFather (из .env или переменной окружения)
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
+
+if (!BOT_TOKEN) {
+  console.error('❌ Ошибка: TELEGRAM_BOT_TOKEN не установлен в .env файле');
+  console.error('Добавьте в .env: TELEGRAM_BOT_TOKEN=your_bot_token');
+  process.exit(1);
+}
 
 // URL вашего backend API
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 // Имя бота (должно совпадать с TELEGRAM_BOT_USERNAME в .env)
-const BOT_USERNAME = 'OurVillageBot';
+const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'OurVillageBot';
+
+console.log(`🤖 Запуск бота: ${BOT_USERNAME}`);
+console.log(`📡 Backend API: ${API_URL}`);
 
 // Создаем экземпляр бота
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
@@ -31,13 +39,22 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
   const telegramId = msg.from.id.toString();
   const verifyToken = match[1]; // Токен из параметра start
 
+  console.log(`📨 Получена команда /start с токеном`);
+  console.log(`📨 Полный текст сообщения: ${msg.text}`);
+  console.log(`📨 Извлеченный токен: ${verifyToken}`);
+  console.log(`📨 Длина токена: ${verifyToken.length}`);
+
   try {
     // Шаг 1: Проверяем токен через ваш API
+    console.log(`🔍 Проверка токена через API: ${API_URL}/api/auth/telegram/bot/verify-token`);
     const verifyResponse = await axios.post(`${API_URL}/api/auth/telegram/bot/verify-token`, {
       verifyToken
     });
 
+    console.log('✅ Токен проверен:', verifyResponse.data);
+
     if (!verifyResponse.data.valid) {
+      console.log('❌ Токен недействителен');
       await bot.sendMessage(chatId, '❌ Токен верификации недействителен или истек срок действия.');
       return;
     }
@@ -57,6 +74,7 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
     }
 
     // Шаг 2: Если токен валиден, подтверждаем верификацию с данными из Telegram
+    console.log(`✅ Подтверждение верификации для пользователя: ${name} (${telegramId})`);
     const confirmResponse = await axios.post(`${API_URL}/api/auth/telegram/bot/confirm`, {
       verifyToken,
       telegramId,
@@ -64,8 +82,11 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
       name: name
     });
 
+    console.log('📝 Ответ от API confirm:', confirmResponse.data);
+
     if (confirmResponse.data.success) {
       const user = confirmResponse.data.user;
+      console.log(`✅ Верификация успешна для пользователя: ${user.name} (${user.id})`);
       await bot.sendMessage(
         chatId,
         `✅ Верификация успешна!\n\n` +
@@ -73,12 +94,20 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
         `Ваш аккаунт подтвержден через Telegram.`
       );
     } else {
+      console.log('❌ Ошибка подтверждения:', confirmResponse.data.error);
       await bot.sendMessage(chatId, `❌ Ошибка: ${confirmResponse.data.error}`);
     }
   } catch (error) {
-    console.error('Error verifying user:', error.response?.data || error.message);
+    console.error('❌ Ошибка при верификации:', error.message);
+    console.error('Детали ошибки:', error.response?.data || error.stack);
     
-    if (error.response?.status === 400) {
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      console.error(`❌ Не удалось подключиться к API: ${API_URL}`);
+      await bot.sendMessage(
+        chatId,
+        '❌ Ошибка подключения к серверу. Пожалуйста, попробуйте позже.'
+      );
+    } else if (error.response?.status === 400) {
       await bot.sendMessage(chatId, `❌ ${error.response.data.error || 'Токен недействителен'}`);
     } else {
       await bot.sendMessage(chatId, '❌ Произошла ошибка при верификации. Попробуйте позже.');
@@ -111,10 +140,18 @@ bot.on('contact', async (msg) => {
  */
 bot.onText(/\/start$/, async (msg) => {
   const chatId = msg.chat.id;
+  console.log(`📨 Получена команда /start БЕЗ токена от пользователя ${msg.from.id}`);
+  console.log(`📨 Полный текст сообщения: ${msg.text}`);
+  console.log(`📨 Все данные сообщения:`, JSON.stringify(msg, null, 2));
+  
   await bot.sendMessage(
     chatId,
     '👋 Добро пожаловать!\n\n' +
-    'Для верификации аккаунта перейдите по ссылке из приложения MyVillage.'
+    'Для верификации аккаунта перейдите по ссылке из приложения MyVillage.\n\n' +
+    '⚠️ Важно: Если вы копируете ссылку из браузера, убедитесь, что скопировали полную ссылку, включая токен после `?start=`.\n\n' +
+    'Пример правильной ссылки:\n' +
+    '`https://t.me/OurVillageBot?start=abc123...`\n\n' +
+    'Если вы видите это сообщение после перехода по ссылке, возможно токен был потерян при копировании.'
   );
 });
 

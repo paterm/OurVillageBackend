@@ -6,11 +6,14 @@
       "start": "node src/app.js",
       "docker:dev": "docker-compose up --build",
       "docker:down": "docker-compose down",
+      "docker:restart": "docker-compose restart app",
       "docker:clean": "docker-compose down -v --remove-orphans",
       "typeorm": "typeorm-ts-node-commonjs",
       "migration:generate": "npm run typeorm -- migration:generate",
       "migration:run": "npm run typeorm -- migration:run",
-      "migration:revert": "npm run typeorm -- migration:revert"
+      "migration:revert": "npm run typeorm -- migration:revert",
+      "bot": "node telegram-bot-example.js",
+      "bot:dev": "nodemon telegram-bot-example.js"
     },
     "dependencies": {
       "typeorm": "^0.3.20",
@@ -29,7 +32,8 @@
       "dotenv": "^16.0.0",
       "aws-sdk": "^2.1500.0",
       "axios": "^1.6.0",
-      "uuid": "^9.0.0"
+      "uuid": "^9.0.0",
+      "node-telegram-bot-api": "^0.64.0"
     },
     "devDependencies": {
       "nodemon": "^2.0.0",

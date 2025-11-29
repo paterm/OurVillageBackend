@@ -21,8 +21,12 @@ const createReview = async (req, res, next) => {
 const getListingReviews = async (req, res, next) => {
   try {
     const { listingId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const result = await listingService.getListingReviews(listingId, { page, limit });
+    const { page = 1, limit = 10, ratingFilter = 'all' } = req.query;
+    const result = await listingService.getListingReviews(listingId, { 
+      page: parseInt(page), 
+      limit: parseInt(limit),
+      ratingFilter 
+    });
     res.status(200).json(result);
   } catch (error) {
     next(error);

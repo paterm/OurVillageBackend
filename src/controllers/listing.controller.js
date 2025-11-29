@@ -6,8 +6,8 @@ const listingService = require('../services/listing.service');
 const createListing = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const listingData = { ...req.body, userId };
-    const listing = await listingService.createListing(listingData, req.files);
+    const listingData = req.body;
+    const listing = await listingService.createListing(listingData, userId);
     res.status(201).json(listing);
   } catch (error) {
     next(error);
@@ -19,8 +19,16 @@ const createListing = async (req, res, next) => {
  */
 const getListings = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, category, search, minPrice, maxPrice } = req.query;
-    const filters = { category, search, minPrice, maxPrice };
+    const { 
+      page = 1, 
+      limit = 10, 
+      category, 
+      search, 
+      minPrice, 
+      maxPrice,
+      sortBy = 'date_desc' // date_desc, price_asc, price_desc, rating_desc
+    } = req.query;
+    const filters = { category, search, minPrice, maxPrice, sortBy };
     const result = await listingService.getListings({ page, limit, ...filters });
     res.status(200).json(result);
   } catch (error) {
@@ -49,7 +57,7 @@ const updateListing = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
     const updateData = req.body;
-    const listing = await listingService.updateListing(id, userId, updateData, req.files);
+    const listing = await listingService.updateListing(id, userId, updateData);
     res.status(200).json(listing);
   } catch (error) {
     next(error);

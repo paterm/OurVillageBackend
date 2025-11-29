@@ -4,7 +4,7 @@ const listingController = require('../controllers/listing.controller');
 const reviewController = require('../controllers/review.controller');
 const messageController = require('../controllers/message.controller');
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
-const { validateCreateListing, validateId } = require('../middleware/validation.middleware');
+const { validateCreateListing, validateId, validateListingId } = require('../middleware/validation.middleware');
 const { uploadListingImages } = require('../middleware/upload.middleware');
 const { createListingLimiter } = require('../middleware/rateLimit.middleware');
 
@@ -16,7 +16,6 @@ const { createListingLimiter } = require('../middleware/rateLimit.middleware');
 router.post(
   '/',
   authenticate,
-  requireVerified,
   createListingLimiter,
   uploadListingImages,
   validateCreateListing,
@@ -73,7 +72,7 @@ router.post(
   '/:listingId/reviews',
   authenticate,
   requireVerified,
-  validateId,
+  validateListingId,
   reviewController.createReview
 );
 
@@ -82,7 +81,7 @@ router.post(
  * @desc    Получить отзывы для объявления
  * @access  Public
  */
-router.get('/:listingId/reviews', validateId, reviewController.getListingReviews);
+router.get('/:listingId/reviews', validateListingId, reviewController.getListingReviews);
 
 /**
  * @route   PUT /api/listings/reviews/:id

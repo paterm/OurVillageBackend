@@ -48,11 +48,35 @@ const uploadLimiter = rateLimit({
   message: 'Too many file uploads, please try again later.'
 });
 
+/**
+ * Лимит для проверки статуса верификации (более мягкий, т.к. проверка происходит часто)
+ */
+const verificationStatusLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 минута
+  max: 30, // 30 запросов в минуту (каждые 2 секунды)
+  message: 'Too many verification status checks, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+/**
+ * Лимит для генерации verifyToken (не должен быть слишком строгим)
+ */
+const verifyTokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 10, // 10 токенов за 15 минут
+  message: 'Too many verification token requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 module.exports = {
   generalLimiter,
   authLimiter,
   smsLimiter,
   createListingLimiter,
-  uploadLimiter
+  uploadLimiter,
+  verificationStatusLimiter,
+  verifyTokenLimiter
 };
 

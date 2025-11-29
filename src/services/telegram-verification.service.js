@@ -5,7 +5,7 @@ const { getRepository } = require('../utils/database');
 const { User } = require('../entities/User');
 const { PendingVerification } = require('../entities/PendingVerification');
 
-const TELEGRAM_BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'our_village';
+const TELEGRAM_BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'OurVillageBot';
 const VERIFICATION_TOKEN_EXPIRY_MINUTES = 15;
 
 /**
@@ -51,11 +51,11 @@ const generateVerificationToken = async (userId) => {
 /**
  * Проверить токен и получить информацию о пользователе
  */
-const verifyToken = async (verifyToken) => {
+const verifyToken = async (token) => {
   const verificationRepo = getRepository(PendingVerification);
   
   const verification = await verificationRepo.findOne({
-    where: { verifyToken },
+    where: { verifyToken: token },
     relations: ['user'],
   });
 
@@ -76,21 +76,74 @@ const verifyToken = async (verifyToken) => {
  * Подтвердить пользователя через Telegram
  * Создает нового пользователя или обновляет существующего на основе данных из Telegram
  */
-const confirmVerification = async (verifyToken, telegramId, phone, name) => {
-  const verification = await verifyToken(verifyToken);
+const confirmVerification = async (token, telegramId, phone, name) => {
+  const verification = await verifyToken(token);
   const userRepo = getRepository(User);
   const verificationRepo = getRepository(PendingVerification);
 
-  // Проверяем, не используется ли этот telegramId другим пользователем
+  // Сначала проверяем, существует ли пользователь с таким telegramId
   const existingUserByTelegram = await userRepo.findOne({
     where: { telegramId }
   });
 
-  if (existingUserByTelegram && existingUserByTelegram.id !== verification.userId) {
-    throw new Error('This Telegram account is already linked to another user');
+  let user;
+
+  // Если пользователь с таким telegramId уже существует
+  if (existingUserByTelegram) {
+    // Если verification.userId указан и это другой пользователь - ошибка
+    if (verification.userId && existingUserByTelegram.id !== verification.userId) {
+      throw new Error('This Telegram account is already linked to another user');
+    }
+    
+    // Если verification.userId не указан (новый токен), используем существующего пользователя
+    if (!verification.userId) {
+      // Обновляем verification с userId существующего пользователя
+      await verificationRepo.update(
+        verification.id,
+        { userId: existingUserByTelegram.id }
+      );
+    }
+    
+    // Обновляем данные пользователя (имя, телефон если нужно)
+    const updateData = {
+      isVerified: true,
+      telegramId,
+      ...(name && { name }),
+    };
+    
+    // Обновляем телефон только если он не занят другим пользователем
+    if (phone) {
+      const existingUserByPhone = await userRepo.findOne({
+        where: { phone }
+      });
+      
+      if (existingUserByPhone && existingUserByPhone.id !== existingUserByTelegram.id) {
+        // Телефон занят другим пользователем, но это не критично - просто не обновляем
+        console.log(`Phone ${phone} is already used by another user, skipping phone update`);
+      } else {
+        updateData.phone = phone;
+      }
+    }
+    
+    user = await userRepo.save({
+      id: existingUserByTelegram.id,
+      ...updateData
+    });
+    
+    // Помечаем верификацию как подтвержденную
+    await verificationRepo.update(
+      verification.id,
+      {
+        verified: true,
+        telegramId,
+        verifiedAt: new Date()
+      }
+    );
+    
+    return user;
   }
 
-  let user;
+  // Если пользователя с таким telegramId нет - создаем нового или обновляем существующего по verification.userId
 
   if (verification.userId) {
     // Если пользователь уже существует - обновляем его
@@ -179,11 +232,11 @@ const confirmVerification = async (verifyToken, telegramId, phone, name) => {
 /**
  * Проверить статус верификации по токену
  */
-const getVerificationStatus = async (verifyToken) => {
+const getVerificationStatus = async (token) => {
   const verificationRepo = getRepository(PendingVerification);
   
   const verification = await verificationRepo.findOne({
-    where: { verifyToken },
+    where: { verifyToken: token },
     relations: ['user'],
   });
 
@@ -207,8 +260,8 @@ const getVerificationStatus = async (verifyToken) => {
  * Получить информацию о пользователе по verifyToken (для бота)
  * Возвращает null, если пользователь еще не создан
  */
-const getUserByToken = async (verifyToken) => {
-  const verification = await verifyToken(verifyToken);
+const getUserByToken = async (token) => {
+  const verification = await verifyToken(token);
   return verification.user || null;
 };
 

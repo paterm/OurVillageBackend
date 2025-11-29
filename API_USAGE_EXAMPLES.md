@@ -26,7 +26,7 @@ const data = await response.json();
 //   "accessToken": "...",
 //   "refreshToken": "...",
 //   "verifyToken": "550e8400-e29b-41d4-a716-446655440000",
-//   "telegramLink": "https://t.me/our_village?start=550e8400-e29b-41d4-a716-446655440000",
+//   "telegramLink": "https://t.me/OurVillageBot?start=550e8400-e29b-41d4-a716-446655440000",
 //   "expiresAt": 1700856000000,
 //   "message": "Please verify your account via Telegram"
 // }
@@ -62,7 +62,7 @@ const data = await response.json();
 //   "expiresAt": 1700856000000
 // }
 
-const telegramLink = `https://t.me/our_village?start=${data.verifyToken}`;
+const telegramLink = `https://t.me/OurVillageBot?start=${data.verifyToken}`;
 window.open(telegramLink, '_blank');
 pollVerificationStatus(data.verifyToken, data.expiresAt);
 ```
